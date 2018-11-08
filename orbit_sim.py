@@ -1,6 +1,6 @@
 """This is an improvement on hackathon_stable_5.py
 The physics engine computes the location independent of update() and then the data can be selectively animted with FuncAnimation
-The angle theta problem is fixed
+The angle theta problem is not fixed yet
 """
 
 import numpy as np
