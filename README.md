@@ -4,7 +4,8 @@ Changes to Hackathon file:
 - Physics simulation is running first and it's independent to FuncAnimation
 - Useless printing is deleted
 - Structural changes in main()
+- Can now animate a slice of the simulation
+- Weird angle bug is FIXED!! (there's some hardcoding to be done on line 96)
 
-Future changes:
-- Add theta calculation that allows a tangential or anti tangential burn
-- Animate only a slice of the physics simulation
+Upcoming changes:
+- the ability to skip a certain number of frames to make animation run faster without compromising simulation
