@@ -1,6 +1,7 @@
 """This is an improvement on hackathon_stable_5.py
 The physics engine computes the location independent of update() and then the data can be selectively animted with FuncAnimation
-The angle theta problem is not fixed yet
+The angle theta problem is FIXED
+There's still hardcode to be done on line 96... help?
 """
 
 import numpy as np
@@ -16,6 +17,9 @@ sim_time = int(1e8)
 dt = int(14400)
 animation_start = 0
 animation_end = sim_time
+frame_skip = 0              # number of frames skipped per each frame
+laser_power = 1e17
+burn_time = 10000000000
 
 class point():
     """returns an object that is a list of two dimensional 'vectors'
@@ -36,7 +40,7 @@ class body():
         self.x_hist = [self.location.x]
         self.y_hist = [self.location.y]
 
-def calculate_single_body_acceleration(bodies, body_index, n):
+def calculate_single_body_acceleration(bodies, body_index, n, laser_power, burn_time):
     """ return the acceleration on a body in bodies caused by other bodies
     using F = G*m1*m2/r^2
     """
@@ -56,35 +60,41 @@ def calculate_single_body_acceleration(bodies, body_index, n):
             acceleration.y = temp_acc*(other_body.location.y - target_body.location.y)
         else:
             pass
-    # if target_body.name == "asteroid":
-    #     ax, ay = laser_force(bodies, n, laser_power, burn_time)
-    #     acceleration.x += ax
-    #     acceleration.y += ay
+    if target_body.name == "asteroid":
+        ax, ay = laser_acc(bodies, n, laser_power, burn_time)
+        acceleration.x += ax
+        acceleration.y += ay
     return acceleration
 
-def laser_force(bodies, n, laser_power, burn_time):
-    """needs to be fixed
-    """
-
+def laser_acc(bodies, n, laser_power, burn_time):
     for body in bodies:
         if body.name == "asteroid":
             laser_power = float(laser_power)
             burn_time = float(burn_time)
 
             laser_force = math.sqrt(1.596e-3*(laser_power-1358.41))   # in N
-            number_of_time_intervals = burn_time//14400
-            if n < number_of_time_intervals:   # the less than equal sign is fixed
-                x_coordinate = body.location.x
-                y_coordinate = body.location.y
-                if x_coordinate != 0:
-                    theta = math.atan(y_coordinate/x_coordinate)
-                elif x_coordinate == 0 and y_coordinate > 0:
-                    theta = np.pi/2      #zero division is fixed
+            number_of_time_intervals = burn_time//dt
+            length = len(body.x_hist)
+            if n - 2 <= number_of_time_intervals and n >= 2:      # makes sure acc isnt calculated for the first 2 ticks and stops the burn
+                x1 = body.x_hist[length-2]
+                x2 = body.x_hist[length-1]
+                y1 = body.y_hist[length-2]
+                y2 = body.y_hist[length-1]
+                delta_x = x2 - x1
+                delta_y = y2 - y1
+                if delta_x > 0 and delta_y > 0:             # extreme hardcoding
+                    theta = math.atan(delta_y/delta_x)
+                elif delta_x < 0 and delta_y > 0:
+                    theta = np.pi - math.atan(delta_y/abs(delta_x))
+                elif delta_x < 0 and delta_y < 0:
+                    theta = np.pi + math.atan(abs(delta_y)/abs(delta_x))
+                elif delta_x > 0 and delta_y < 0:
+                    theta = -1*math.atan(abs(delta_y)/delta_x)
                 else:
-                    theta = -1*np.pi/2
+                    return 0, 0             # hardcoding not done yet. cases delta_x = 0 and delta_y = 0
 
-                acc_x = (math.sin(theta)*laser_force)/body.mass
-                acc_y = (-math.cos(theta)*laser_force)/body.mass
+                acc_x = (math.cos(theta)*laser_force)/body.mass
+                acc_y = (math.sin(theta)*laser_force)/body.mass
                 return acc_x, acc_y
             elif n == number_of_time_intervals:
                 print ("Burn finished!")   #optional
@@ -95,15 +105,15 @@ def laser_force(bodies, n, laser_power, burn_time):
             pass
 
 
-def calculate_velocity(bodies, n, dt = 3600):    # dt is equivalent to 4hrs, so 6 updates per day
+def calculate_velocity(bodies, n, dt, laser_power, burn_time):    # dt is equivalent to 4hrs, so 6 updates per day
     """compute all the velocity after dt and change the velocity attributes in the bodies
     """
     for body_index, target_body in enumerate(bodies):
-        acceleration = calculate_single_body_acceleration(bodies, body_index, n)
+        acceleration = calculate_single_body_acceleration(bodies, body_index, n, laser_power, burn_time)
         target_body.velocity.x += acceleration.x * dt
         target_body.velocity.y += acceleration.y * dt
 
-def calculate_position(bodies, dt = 3600):   # dt = 4 hours, 6 ticks/day
+def calculate_position(bodies, dt):   # dt = 4 hours, 6 ticks/day
     for body in bodies:
         body.location.x += body.velocity.x * dt
         body.location.y += body.velocity.y *dt
@@ -111,9 +121,9 @@ def calculate_position(bodies, dt = 3600):   # dt = 4 hours, 6 ticks/day
         body.y_hist.append(body.location.y)
 
 
-def compute_gravity_step(bodies, n, dt = 3600):
-    calculate_velocity(bodies, n, dt = dt)
-    calculate_position(bodies, dt = dt)
+def compute_gravity_step(bodies, n, dt, laser_power, burn_time):
+    calculate_velocity(bodies, n, dt, laser_power, burn_time)
+    calculate_position(bodies, dt)
 
 
 sun = {"location":point(0,0), "mass":2e30, "velocity":point(0,0)}
@@ -151,6 +161,12 @@ text = ax.text(0, 0, '', transform = ax.transAxes,fontsize = 10)
 
 
 def update(frame):
+    start_frame = animation_start//dt
+    end_frame = animation_end//dt
+    frame += int(start_frame)
+    if frame == end_frame:
+        print("Animation finished: start = %ds   end = %ds " %(animation_start, animation_end))
+        sys.exit(0)
     for body in bodies:
         x_data, y_data = [],[]
         x_data.append(body.x_hist[frame])
@@ -170,14 +186,14 @@ def update(frame):
     text.set_text(str("Time elapsed: "+ str(frame*4)+" hours"))
     return rock_plot, sun_plot, trace, earth_plot, text
 
-def main():
+def main(laser_power=1e18, burn_time=100000000):
     frames = int(sim_time//dt)
     for t in range(0,frames):
-        compute_gravity_step(bodies, t, dt)
+        compute_gravity_step(bodies, t, dt, laser_power, burn_time)
 
     ani = FuncAnimation(fig, update, interval=1, blit=True)
     plt.show()
 
 
 if __name__ == '__main__':
-    main()
+    main(laser_power, burn_time)
