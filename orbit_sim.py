@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import math
 import sys
-import time
 
 #settings
 # everything time related are in seconds
