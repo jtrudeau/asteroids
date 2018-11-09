@@ -13,13 +13,13 @@ import sys
 #settings
 # everything time related are in seconds
 global sim_time, animation_start, animation_end, dt
-sim_time = int(1e8)
-dt = int(14400)
-animation_start = 0
+sim_time = int(1e9)
+dt = int(7200)
+animation_start = 1e7
 animation_end = sim_time
 frame_skip = 0              # number of frames skipped per each frame
-laser_power = 1e17
-burn_time = 10000000000
+laser_power = 1e18
+burn_time = 1000000
 
 class point():
     """returns an object that is a list of two dimensional 'vectors'
@@ -163,7 +163,7 @@ text = ax.text(0, 0, '', transform = ax.transAxes,fontsize = 10)
 def update(frame):
     start_frame = animation_start//dt
     end_frame = animation_end//dt
-    frame += int(start_frame)
+    frame = frame*(frame_skip+1) + int(start_frame)
     if frame == end_frame:
         print("Animation finished: start = %ds   end = %ds " %(animation_start, animation_end))
         sys.exit(0)
